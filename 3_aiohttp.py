@@ -28,21 +28,21 @@ async def fetch_status(url: str, session: ClientSession, delay: int):
 async def main():
     async with ClientSession() as session:
         fetchers = [
-            fetch_status(url, session, 1),
-            fetch_status(url, session, 1),
-            fetch_status(url, session, 10)
+            asyncio.create_task(fetch_status(url, session, 1)),
+            asyncio.create_task(fetch_status(url, session, 2)),
+            asyncio.create_task(fetch_status("bad://ptyhon", session, 2)),
+            asyncio.create_task(fetch_status(url, session, 3)),
         ]
 
-        for done_task in asyncio.as_completed(fetchers, timeout=2):
-            try:
-                res = await done_task
-                print(res)
-            except asyncio.TimeoutError:
-                print("Timeout!!!")
-            
-        for task in asyncio.tasks.all_tasks():
-            print(task)
+        done, pending = await asyncio.wait(fetchers, return_when=asyncio.FIRST_EXCEPTION)
+
+        for done_task in done:
+            if done_task.exception() is None:
+                print(done_task.result())
+            else:
+                print("Exception was found")
+
+        for pending_task in pending:
+            pending_task.cancel()
 
 asyncio.run(main())
-
-
