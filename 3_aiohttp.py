@@ -30,19 +30,15 @@ async def main():
         fetchers = [
             asyncio.create_task(fetch_status(url, session, 1)),
             asyncio.create_task(fetch_status(url, session, 2)),
-            asyncio.create_task(fetch_status("bad://ptyhon", session, 2)),
-            asyncio.create_task(fetch_status(url, session, 3)),
+            asyncio.create_task(fetch_status(url, session, 2)),
         ]
 
-        done, pending = await asyncio.wait(fetchers, return_when=asyncio.FIRST_EXCEPTION)
+        done, pending = await asyncio.wait(fetchers, return_when=asyncio.FIRST_COMPLETED)
+
+        print("Number of done tasks: ", len(done))
+        print("Number of pending tasks: ", len(pending))
 
         for done_task in done:
-            if done_task.exception() is None:
-                print(done_task.result())
-            else:
-                print("Exception was found")
-
-        for pending_task in pending:
-            pending_task.cancel()
+            print(await done_task)
 
 asyncio.run(main())

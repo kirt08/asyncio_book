@@ -44,3 +44,21 @@ async def main():
 asyncio.run(main())
 ```
 
+Допустим вот такой вариант с *return_when=asyncio.FIRST_COMPLETED*
+```python
+async def main():
+    async with ClientSession() as session:
+        fetchers = [
+            asyncio.create_task(fetch_status(url, session, 1)),
+            asyncio.create_task(fetch_status(url, session, 2)),
+            asyncio.create_task(fetch_status(url, session, 2)),
+        ]
+
+        done, pending = await asyncio.wait(fetchers, return_when=asyncio.FIRST_COMPLETED)
+
+        print("Number of done tasks: ", len(done))
+        print("Number of pending tasks: ", len(pending))
+
+        for done_task in done:
+            print(await done_task)
+```
