@@ -5,6 +5,8 @@ from aiohttp import ClientSession
 
 from functools import wraps
 
+url = "https://www.google.com"
+
 def async_timed(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
@@ -17,16 +19,30 @@ def async_timed(func):
 
 
 @async_timed
-async def fetch_status(url: str, session: ClientSession):
-    async with session.get(url) as result:
-        return result.status
-    
+async def fetch_status(url: str, session: ClientSession, delay: int):
+    await asyncio.sleep(delay)
+    async with session.get(url) as response:
+        return response.status
 
-@async_timed
+
 async def main():
     async with ClientSession() as session:
-        url = "https://google.com"
-        status = await fetch_status(url, session)
-        print(f"Status of resource: {url} is {status}")
+        fetchers = [
+            fetch_status(url, session, 1),
+            fetch_status(url, session, 1),
+            fetch_status(url, session, 10)
+        ]
+
+        for done_task in asyncio.as_completed(fetchers, timeout=2):
+            try:
+                res = await done_task
+                print(res)
+            except asyncio.TimeoutError:
+                print("Timeout!!!")
+            
+        for task in asyncio.tasks.all_tasks():
+            print(task)
 
 asyncio.run(main())
+
+
