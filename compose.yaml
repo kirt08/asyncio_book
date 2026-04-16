@@ -1,0 +1,16 @@
+services:
+    postgres:
+        container_name: asyncio_book_postgres
+        image: postgres:16
+        ports:
+            - "5432:5432"
+        environment:
+            POSTGRES_USER: asyncio_book_user
+            POSTGRES_PASSWORD: 12345678
+            POSTGRES_DB: asyncio_book
+        volumes:
+            - pg_data:/var/lib/postgresql
+
+
+volumes:
+    pg_data:
