@@ -1,37 +1,35 @@
+from asyncio import AbstractEventLoop
+import asyncio
+from functools import partial
 import time
-from multiprocessing import Process
+from concurrent.futures import ProcessPoolExecutor
 
 
-def timer(func: callable):
-    def wrapper(*args, **kwargs):
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        duration = time.perf_counter() - start
-        print(f"Функция {func.__name__}: Время выполнения: ", duration)
-        return result
-    return wrapper
-
-
-@timer
 def count(count_to: int) -> int:
+    start = time.perf_counter()
     counter = 0
     while counter < count_to:
         counter += 1
+    duration = time.perf_counter() - start
+    print("Время выполенения: ", duration)
     return counter
 
 
-@timer
-def main():
-    count_1 = Process(target = count, args=(100000000, ))
-    count_2 = Process(target = count, args=(200000000, ))
+async def main():
+    with ProcessPoolExecutor() as process_pool:
+        loop: AbstractEventLoop = asyncio.get_running_loop()
+        nums = [100_000_000, 1, 2, 5, 22, 100_000_000]
+        calls: list[partial[int]] = [partial(count, num) for num in nums]
+        calls_coros = []
 
-    count_1.start() # сразу возвращает управление и начинает выполнять процесс
-    count_2.start()
+        for call in calls:
+            calls_coros.append(loop.run_in_executor(process_pool, call))
 
-    count_1.join() # ждать завершение процесса. Метод блокирует выполнение пока процесс не завершится
-    count_2.join()
+        results = await asyncio.gather(*calls_coros)
 
+        for res in results:
+            print(res)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
 
