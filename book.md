@@ -62,3 +62,66 @@ async def main():
         for done_task in done:
             print(await done_task)
 ```
+
+Пример создания потока и передачи в него функции:
+```python
+thread = Thread(target = echo, args = (connection, ))
+thread.start()
+```
+
+Использование таких потоков в IO задачах практически эквивалентно ассинхронному подходу (в книге мы написали эхо-сервер на сокетах в двух вариация), однако при завершении главного потока через **CTRL + C** (возбуждение KeyboardInterrupt) дочерние потоки не будут уведомлены и продолжать работать (в нашем случае получать и отправлять данные). В книге представлено два варианта решения данной проблемы:
+
+1. Использование потоков-демонов ("демоны" - специальный вид потоков предназначенный для выполнения длительных фоновых задач), такие потоки прекратят работу, когда родительский (главный поток Python) завершит работы (в нашем случае возбудит исключение KeyboardInterrupt).
+Чтобы сделать из обычного потока -> поток-демон нужно добавить вызов одного метода:
+```python
+thread = Thread(target = echo, args = (connection, ))
+thread.daemon = True
+thread.start()
+```
+У данного подхода есть один существенный недостаток - такие потоки умирают без всякого уведомления.
+
+2. Переопределение метода **run** внутри *Tread*
+```python
+from threading import Thread
+import socket
+
+
+class ClientThread(Thread):
+    def __init__(self, client: socket.socket):
+        super().__init__()
+        self.client = client
+    
+    def run(self):
+        try:
+            while True:
+                data = self.client.recv(2048)
+                if not data:
+                    raise BrokenPipeError("Connection closed!")
+                print(f"Получено сообщение: {data}. Отправляю...")
+                self.client.sendall(data)
+
+        except OSError as e:
+            print(f"Возбудилось исключение -> {e}. Останавливаем поток")
+
+    def close(self):
+        if self.is_alive():
+            self.client.sendall(bytes("Подключение прервано", encoding="utf-8"))
+            self.client.shutdown(socket.SHUT_RDWR)
+
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind(("0.0.0.0", 8000))
+    server.listen()
+    connection_threads = []
+    try:
+        while True:
+            connection, addr = server.accept()
+            thread = ClientThread(connection)
+            connection_threads.append(thread)
+            thread.start()
+    except KeyboardInterrupt:
+        print("Останавливаюсь")
+        [thread.close() for thread in connection_threads]
+```
+Вроде бы в этом коде все достаточно тривиально и не требует никаких комментариев ( в ином случае загляните в CHATGPT -_- )
