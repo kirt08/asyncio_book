@@ -63,6 +63,8 @@ async def main():
             print(await done_task)
 ```
 
+### Tread
+
 Пример создания потока и передачи в него функции:
 ```python
 thread = Thread(target = echo, args = (connection, ))
@@ -125,3 +127,22 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         [thread.close() for thread in connection_threads]
 ```
 Вроде бы в этом коде все достаточно тривиально и не требует никаких комментариев ( в ином случае загляните в CHATGPT -_- )
+
+
+### ThreadPoolExecutor
+```python
+def get_status(url: str) -> int:
+    response = requests.get(url)
+    return response.status_code
+
+
+@timer
+def main():
+    with ThreadPoolExecutor() as pool:
+        urls = ["https://www.google.com" for _ in range(100)]
+        results = pool.map(get_status, urls)
+        for result in results:
+            print(result)
+```
+
+Разберем немного многопоточный подход для решения задачи, которую мы уже решали с помощью спорограмм и *aiohttp*, будем стучаться на определенный url 100 раз и засечем за сколько мы выполним все запросы (авторы в книге делают 1000 запросов, однако api google, как мне кажется, не дает так много стучаться и разрывает соединения), такой код отработал за 6.5 секунд ( у авторов книги за 8-9 с), давайте проведем анологию с асинхронным подходом, там результаты (меньше 1 секунды в книге) практически в 6 раз меньше наших. Возможно просто нужно увеличить число потоков, для 100 задач - 100 поток, НЕТ. Такое решение не будет будет оптимальным, т.к. OC будет тратить больше рессурсов для переключения контекста между потоками, чем на работу в самих потоках.
