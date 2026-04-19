@@ -146,3 +146,27 @@ def main():
 ```
 
 Разберем немного многопоточный подход для решения задачи, которую мы уже решали с помощью спорограмм и *aiohttp*, будем стучаться на определенный url 100 раз и засечем за сколько мы выполним все запросы (авторы в книге делают 1000 запросов, однако api google, как мне кажется, не дает так много стучаться и разрывает соединения), такой код отработал за 6.5 секунд ( у авторов книги за 8-9 с), давайте проведем анологию с асинхронным подходом, там результаты (меньше 1 секунды в книге) практически в 6 раз меньше наших. Возможно просто нужно увеличить число потоков, для 100 задач - 100 поток, НЕТ. Такое решение не будет будет оптимальным, т.к. OC будет тратить больше рессурсов для переключения контекста между потоками, чем на работу в самих потоках.
+
+### asyncio with Treads
+```python
+async def main():
+    loop = asyncio.get_event_loop()
+    urls = ["https://www.google.com" for _ in range(300)]
+    tasks = [
+        loop.run_in_executor(executor = None, func = partial(get_status, url))
+        for url in urls
+    ]
+    results = await asyncio.gather(*tasks)
+    print(results)
+
+    # executor = None - по умолчанию создает ThreadPoolExecutor, если не переопределен loop.set_default_executor
+```
+
+еще проще применить вот так подход:
+```python
+async def main():
+    urls = ["https://www.google.com" for _ in range(50)]
+    tasks = [asyncio.to_thread(get_status, url) for url in urls]
+    results = await asyncio.gather(*tasks)
+    print(results)
+```
