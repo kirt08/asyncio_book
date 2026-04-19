@@ -1,7 +1,13 @@
 import time
-import requests
 import asyncio
+import requests
+from threading import Lock
 from functools import partial
+from concurrent.futures import ThreadPoolExecutor
+
+
+counter_lock = Lock()
+counter: int = 0
 
 
 def timer(func):
@@ -14,27 +20,29 @@ def timer(func):
     return wrapper
 
 def get_status(url: str) -> int:
+    global counter
     response = requests.get(url)
+    with counter_lock:
+        counter += 1
     return response.status_code
 
-@timer
-async def main1():
-    loop = asyncio.get_event_loop()
-    urls = ["https://www.google.com" for _ in range(50)]
-    tasks = [
-        loop.run_in_executor(executor = None, func = partial(get_status, url))
-        for url in urls
-    ]
-    results = await asyncio.gather(*tasks)
-    print(results)
+async def reporter(request_count: int):
+    while counter < request_count:
+        print(f"Завершено {counter}/{request_count}")
+        await asyncio.sleep(.5)
 
 @timer
-async def main2():
-    urls = ["https://www.google.com" for _ in range(50)]
+async def main():
+    requests_count = 200
+    urls = ["https://www.google.com" for _ in range(requests_count)]
+
+    reporter_task = asyncio.create_task(reporter(requests_count))
     tasks = [asyncio.to_thread(get_status, url) for url in urls]
+    
     results = await asyncio.gather(*tasks)
+    await reporter_task
     print(results)
 
 
 if __name__ == "__main__":
-    asyncio.run(main2())
+    asyncio.run(main())
