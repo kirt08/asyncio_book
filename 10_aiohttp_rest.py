@@ -38,6 +38,38 @@ async def brands(request: Request) -> Response:
     results_as_dict: list[dict] = [dict(brand) for brand in results]
     return web.json_response(results_as_dict)
 
+@routes.get("/product/{id}")
+async def get_product(request: Request) -> Response:
+    try:
+        product_id = int(request.match_info["id"])
+        query = "SELECT product_id, product_name, brand_id FROM product WHERE product_id = $1"
+        connection: Pool = request.app[DB_KEY]
+        result: Record = await connection.fetchrow(query, product_id)
+
+        if result is not None:
+            return web.json_response(dict(result))
+        else:
+            raise web.HTTPNotFound()
+    except ValueError:
+        raise web.HTTPBadRequest()
+    
+@routes.post("/product")
+async def create_product(request: Request) -> Response:
+    PRODUCT_NAME = "product_name"
+    BRAND_ID = "brand_id"
+
+    if not request.can_read_body:
+        raise web.HTTPBadRequest()
+    
+    body = await request.json()
+
+    if PRODUCT_NAME in body and BRAND_ID in body:
+        db: Pool = request.app[DB_KEY]
+        await db.execute("INSERT INTO product(product_id, product_name, brand_id) VALUES (DEFAULT, $1, $2)", body[PRODUCT_NAME], int(body[BRAND_ID]))
+        return web.Response(status=201)
+    else:
+        raise web.HTTPBadRequest()
+        
 
 app = web.Application()
 app.on_startup.append(create_database_pool)
